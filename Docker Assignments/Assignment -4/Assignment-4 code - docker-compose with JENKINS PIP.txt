@@ -1,0 +1,121 @@
+
+pipeline {
+agent {
+node {
+            label "built-in"
+			customWorkspace "/mnt/projects"
+}
+}
+stages {
+stage ('cloning source code') {
+steps {
+            sh "rm -rf *"
+            sh "yum install git -y"
+            sh "git clone https://github.com/nupur-londhe/game-of-life-nup.git"
+			
+			sh "chmod 400 /mnt/ohio.pem"
+}
+}
+stage ('building source code') {
+steps {
+dir ('/mnt/projects/game-of-life-nup'){
+
+     sh "mvn install"
+	 }
+}
+}
+stage ('Copying to SLAVE-1') {
+steps {
+dir ('/mnt/projects/game-of-life-nup') {
+
+        sh "cp /mnt/ohio.pem /mnt/projects/game-of-life-nup"
+		
+		
+		sh "scp -i ohio.pem gameoflife-web/target/gameoflife.war ec2-user@172.31.19.233:/mnt/war"   //give 777 permissions for /mnt/war//
+}			
+}
+}
+stage ('Copying to SLAVE-2') {
+steps {
+dir ('/mnt/projects/game-of-life-nup') {
+
+        sh "scp -i ohio.pem gameoflife-web/target/gameoflife.war ec2-user@172.31.16.157:/mnt/war"    //give 777 permissions for /mnt/war//
+}
+}
+}
+
+stage ('cloning and executing docker-compose in SLAVE-1'){
+agent{
+node {
+          label "172.31.19.233-SLAVE-1"
+		  customWorkspace "/mnt/nupur"
+
+
+}
+}
+
+steps {
+
+       sh "sudo yum install git -y"
+	   sh "sudo rm -rf Rosemary"                                          //used only after 1st build//
+	   sh "sudo git clone https://github.com/nupur-londhe/Rosemary.git"
+
+dir ('Rosemary'){
+	   
+	   sh "sudo chmod 777 docker-compose.yml"
+	   sh "sudo yum install docker -y"
+	   sh "sudo systemctl start docker"
+	   sh "sudo curl -L https://github.com/docker/compose/releases/download/1.21.0/docker-compose-`uname -s`-`uname -m` | sudo tee /usr/local/bin/docker-compose > /dev/null"
+	   sh "sudo chmod +x /usr/local/bin/docker-compose"
+	   //sh "rm -rf /usr/bin/docker-compose"//
+	   //sh "sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose"//       //use this for 1st build//
+	   sh "sudo docker-compose up -d"
+
+}
+
+}
+}
+
+stage ('cloning and executing docker-compose in SLAVE-2'){
+agent{
+node {
+          label "172.31.16.157-SLAVE-2"
+		  customWorkspace "/mnt/nupur"
+
+
+}
+}
+
+steps {
+
+       sh "sudo yum install git -y"
+	   sh "sudo rm -rf Rosemary"                                              //used only after 1st build//
+	   sh "sudo git clone https://github.com/nupur-londhe/Rosemary.git"
+	   
+dir ('Rosemary'){	   
+	   
+	   sh "sudo chmod 777 docker-compose.yml"
+	   sh "sudo yum install docker -y"
+	   sh "sudo systemctl start docker"
+	   sh "sudo curl -L https://github.com/docker/compose/releases/download/1.21.0/docker-compose-`uname -s`-`uname -m` | sudo tee /usr/local/bin/docker-compose > /dev/null"
+	   sh "sudo chmod +x /usr/local/bin/docker-compose"
+	   //sh "sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose"//    //use this for 1st build//
+	   sh "sudo docker-compose up -d"
+
+}
+}
+}
+
+
+
+
+
+
+
+
+
+
+}
+
+
+}
