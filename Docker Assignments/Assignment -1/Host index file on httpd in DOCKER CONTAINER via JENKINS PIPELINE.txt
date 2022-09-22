@@ -1,0 +1,81 @@
+pipeline {
+agent {
+label{
+                   label "built-in"
+				   customWorkspace "/mnt"
+
+}
+
+}
+
+stages {
+stage ('creating directories'){
+
+steps {
+          sh "rm -rf 22Q1 22Q2 22Q3"
+          sh "chmod -R 777 /mnt"
+          sh "mkdir 22Q1 22Q2 22Q3"
+		  sh "yum install docker -y"
+		  sh "systemctl start docker"
+
+}
+
+}
+stage ('Preparing index files in directories') {
+
+steps {
+dir ('22Q1') {
+
+        sh "echo 'This is 22Q1' >> index.html"  
+}
+
+dir ('22Q2') {
+
+        sh "echo 'This is 22Q2' >> index.html"  
+}
+
+dir ('22Q3') {
+
+        sh "echo 'This is 22Q3' >> index.html"  
+}
+
+}
+
+}
+
+stage ('Deploying index files to multiple container servers') {
+steps {
+dir ('22Q1') {
+        
+ 		sh "docker stop server-1 server-2 server-3" //keep this line commented for first build//
+        sh "docker system prune -a -f"
+        sh "docker run --name server-1 -itdp 80:80 httpd" //run image through a custom-name so that you can use the same while copying, no need to use container ID//
+        sh "chmod 777 index.html"
+		sh "docker cp index.html server-1:/usr/local/apache2/htdocs"		
+}
+
+dir ('22Q2') {
+
+        sh "docker run --name server-2 -itdp 90:80 httpd" //run image through a custom-name so that you can use the same while copying, no need to use container ID//
+        sh "chmod 777 index.html"
+		sh "docker cp index.html server-2:/usr/local/apache2/htdocs"		
+}
+
+dir ('22Q3') {
+
+        sh "docker run --name server-3 -itdp 7070:80 httpd"  //run image through a custom-name so that you can use the same while copying, no need to use container ID//
+        sh "chmod 777 index.html"
+		sh "docker cp index.html server-3:/usr/local/apache2/htdocs" 		
+}
+
+}
+
+}
+
+
+
+
+
+}
+
+}
